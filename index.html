@@ -409,7 +409,7 @@
         const base = gradioURL.replace(/\/\/$/, "");
         const sessionHash = Math.random().toString(36).substring(2);
 
-        const response = await fetch(base + "/run/predict", {
+        const response = await fetch(base + "/api/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
