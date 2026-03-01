@@ -403,42 +403,57 @@
       document.getElementById("texto-resultado").innerHTML =
         '<span class="loading"></span> Generando especulación...';
       document.getElementById("imagen-resultado").innerHTML =
-        '<p id="imagen-placeholder">Generando imagen...</p>';
+        '<p style="color:#333;font-style:italic;padding:20px">Generando imagen...</p>';
 
       try {
-        // Llamar al endpoint de Gradio
-        const endpoint = gradioURL.replace(/\/$/, "") + "/run/predict";
+        const base = gradioURL.replace(/\/$/, "");
 
-        const response = await fetch(endpoint, {
+        // Paso 1: obtener info de la app para encontrar el fn_index correcto
+        const infoResp = await fetch(base + "/info");
+        const info = await infoResp.json();
+
+        // Paso 2: llamar al endpoint correcto
+        const response = await fetch(base + "/run/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: [estadoActual] })
+          body: JSON.stringify({
+            data: [estadoActual],
+            fn_index: 0,
+            session_hash: Math.random().toString(36).substring(2)
+          })
         });
 
         const result = await response.json();
+        console.log("Respuesta Gradio:", result);
 
-        // Mostrar texto narrativo
+        if (!result || !result.data) {
+          throw new Error("Respuesta inesperada de Gradio: " + JSON.stringify(result));
+        }
+
+        // Mostrar texto
         const texto = result.data[0];
-        document.getElementById("texto-resultado").textContent = texto;
+        document.getElementById("texto-resultado").textContent = texto || "Sin respuesta";
 
-        // Mostrar imagen si existe
+        // Mostrar imagen
         const imgData = result.data[1];
-        if (imgData) {
-          const imgSrc = imgData.url || imgData;
+        if (imgData && imgData.url) {
           document.getElementById("imagen-resultado").innerHTML =
-            `<img src="${imgSrc}" alt="Identidad futura especulada"/>`;
+            `<img src="${imgData.url}" alt="Identidad futura especulada"/>`;
+        } else if (imgData && typeof imgData === "string" && imgData.startsWith("http")) {
+          document.getElementById("imagen-resultado").innerHTML =
+            `<img src="${imgData}" alt="Identidad futura especulada"/>`;
         } else {
           document.getElementById("imagen-resultado").innerHTML =
-            '<p id="imagen-placeholder" style="color:#333;font-style:italic;padding:20px">Imagen no disponible en este momento</p>';
+            '<p style="color:#333;font-style:italic;padding:20px">Imagen no disponible</p>';
         }
 
       } catch (err) {
+        console.error("Error completo:", err);
         document.getElementById("texto-resultado").textContent =
-          "Error al conectar con el espejo: " + err.message +
-          "\n\nVerifica que la URL de Gradio sea correcta y esté activa.";
+          "Error: " + err.message +
+          "\n\nAbre la consola del navegador (F12) para ver más detalles.";
       }
 
-      // Restaurar botón después de 45 segundos
       setTimeout(() => {
         btn.disabled = false;
         btn.innerHTML = "🪞 Activar el espejo";
