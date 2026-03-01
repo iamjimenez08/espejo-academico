@@ -406,52 +406,45 @@
         '<p style="color:#333;font-style:italic;padding:20px">Generando imagen...</p>';
 
       try {
-        const base = gradioURL.replace(/\/$/, "");
+        const base = gradioURL.replace(/\/\/$/, "");
+        const sessionHash = Math.random().toString(36).substring(2);
 
-        // Paso 1: obtener info de la app para encontrar el fn_index correcto
-        const infoResp = await fetch(base + "/info");
-        const info = await infoResp.json();
-
-        // Paso 2: llamar al endpoint correcto
         const response = await fetch(base + "/run/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             data: [estadoActual],
             fn_index: 0,
-            session_hash: Math.random().toString(36).substring(2)
+            session_hash: sessionHash
           })
         });
 
         const result = await response.json();
-        console.log("Respuesta Gradio:", result);
+        console.log("Respuesta Gradio:", JSON.stringify(result));
 
         if (!result || !result.data) {
-          throw new Error("Respuesta inesperada de Gradio: " + JSON.stringify(result));
+          throw new Error("Sin datos: " + JSON.stringify(result));
         }
 
-        // Mostrar texto
         const texto = result.data[0];
         document.getElementById("texto-resultado").textContent = texto || "Sin respuesta";
 
-        // Mostrar imagen
         const imgData = result.data[1];
         if (imgData && imgData.url) {
+          const imgUrl = imgData.url.startsWith("http") ? imgData.url : base + imgData.url;
           document.getElementById("imagen-resultado").innerHTML =
-            `<img src="${imgData.url}" alt="Identidad futura especulada"/>`;
-        } else if (imgData && typeof imgData === "string" && imgData.startsWith("http")) {
+            `<img src="${imgUrl}" alt="Identidad futura especulada"/>`;
+        } else if (imgData && imgData.path) {
           document.getElementById("imagen-resultado").innerHTML =
-            `<img src="${imgData}" alt="Identidad futura especulada"/>`;
+            `<img src="${base}/file=${imgData.path}" alt="Identidad futura especulada"/>`;
         } else {
           document.getElementById("imagen-resultado").innerHTML =
-            '<p style="color:#333;font-style:italic;padding:20px">Imagen no disponible</p>';
+            '<p style="color:#555;font-style:italic;padding:20px;text-align:center">Imagen generada</p>';
         }
 
       } catch (err) {
-        console.error("Error completo:", err);
-        document.getElementById("texto-resultado").textContent =
-          "Error: " + err.message +
-          "\n\nAbre la consola del navegador (F12) para ver más detalles.";
+        console.error("Error:", err);
+        document.getElementById("texto-resultado").textContent = "Error: " + err.message;
       }
 
       setTimeout(() => {
